@@ -1,0 +1,98 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.97 0.005 220;
+    --foreground: 0.15 0.02 220;
+
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.02 220;
+
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.02 220;
+
+    --primary: 0.67 0.12 185;
+    --primary-foreground: 1 0 0;
+
+    --secondary: 0.93 0.04 185;
+    --secondary-foreground: 0.22 0.06 220;
+
+    --muted: 0.93 0.008 220;
+    --muted-foreground: 0.48 0.02 220;
+
+    --accent: 0.93 0.04 185;
+    --accent-foreground: 0.22 0.06 220;
+
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 1 0 0;
+
+    --border: 0.88 0.01 220;
+    --input: 0.88 0.01 220;
+    --ring: 0.67 0.12 185;
+
+    --radius: 0.75rem;
+
+    /* Custom hero colors */
+    --hero-dark: 0.2 0.055 225;
+    --hero-darker: 0.26 0.065 225;
+    --hero-text: 1 0 0;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.2 0.055 225),
+    oklch(0.28 0.07 225)
+  );
+}
+
+.hero-card {
+  background: oklch(1 0 0 / 0.1);
+  border: 1px solid oklch(1 0 0 / 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.step-number {
+  font-size: 6rem;
+  font-weight: 800;
+  color: oklch(0.93 0.04 185);
+  opacity: 0.3;
+  line-height: 1;
+  position: absolute;
+  top: -1rem;
+  left: 1rem;
+}
+
+.qr-scan-frame {
+  position: absolute;
+  inset: 0;
+  border: 3px solid oklch(0.67 0.12 185);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px oklch(0.1 0.03 225 / 0.7);
+}

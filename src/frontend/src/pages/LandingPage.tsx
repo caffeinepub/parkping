@@ -109,10 +109,13 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center">
             <img
-              src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+              src="/assets/uploads/image-2-1.png"
               alt="ParkPing"
-              className="h-10 w-auto"
+              className="h-9 w-auto"
             />
+            <span className="text-xl font-bold text-teal-600 tracking-tight">
+              ParkPing
+            </span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <a
@@ -390,10 +393,13 @@ export default function LandingPage() {
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <img
-                src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+                src="/assets/uploads/image-2-1.png"
                 alt="ParkPing"
                 className="h-7 w-auto"
               />
+              <span className="text-lg font-bold text-teal-600 tracking-tight">
+                ParkPing
+              </span>
             </div>
             <div className="flex gap-6 text-sm text-muted-foreground">
               <a

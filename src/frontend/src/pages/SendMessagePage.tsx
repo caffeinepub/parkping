@@ -93,10 +93,13 @@ export default function SendMessagePage() {
           </button>
           <div className="flex items-center gap-2">
             <img
-              src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+              src="/assets/uploads/image-2-1.png"
               alt="ParkPing"
               className="h-8 w-auto"
             />
+            <span className="text-xl font-bold text-teal-600 tracking-tight">
+              ParkPing
+            </span>
           </div>
         </div>
       </header>

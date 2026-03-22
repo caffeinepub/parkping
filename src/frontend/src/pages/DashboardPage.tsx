@@ -165,10 +165,13 @@ export default function DashboardPage() {
             data-ocid="nav.link"
           >
             <img
-              src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+              src="/assets/uploads/image-2-1.png"
               alt="ParkPing"
-              className="h-10 w-auto"
+              className="h-9 w-auto"
             />
+            <span className="text-xl font-bold text-teal-600 tracking-tight">
+              ParkPing
+            </span>
           </button>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">

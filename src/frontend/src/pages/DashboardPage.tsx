@@ -4,9 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Bell,
+  BellOff,
+  BellRing,
   Check,
   Copy,
   Download,
@@ -14,24 +17,50 @@ import {
   Inbox,
   Loader2,
   LogOut,
+  Package,
+  Printer,
   Shield,
+  Sticker,
   User,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useMessagePoller } from "../hooks/useMessagePoller";
+import { useNotifications } from "../hooks/useNotifications";
 import {
+  type StickerOrderStatus,
   useCallerProfile,
   useInbox,
+  useMyOrders,
   useSaveProfile,
+  useSubmitStickerOrder,
 } from "../hooks/useQueries";
 import { formatRelativeTime } from "../utils/formatters";
+
+function getStatusLabel(status: StickerOrderStatus): string {
+  if ("pending" in status) return "Pending";
+  if ("printed" in status) return "Printed";
+  if ("mailed" in status) return "Mailed";
+  return "Unknown";
+}
+
+function getStatusVariant(
+  status: StickerOrderStatus,
+): "default" | "secondary" | "outline" {
+  if ("pending" in status) return "secondary";
+  if ("printed" in status) return "default";
+  if ("mailed" in status) return "outline";
+  return "secondary";
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { identity, clear } = useInternetIdentity();
+  const { actor } = useActor();
   const principal = identity?.getPrincipal().toText() ?? null;
   const qrUrl = principal
     ? `${window.location.origin}/send?to=${principal}`
@@ -43,10 +72,23 @@ export default function DashboardPage() {
   const { data: messages, isLoading: inboxLoading } = useInbox();
   const { data: profile, isLoading: profileLoading } = useCallerProfile();
   const saveProfile = useSaveProfile();
+  const { data: myOrders, isLoading: ordersLoading } = useMyOrders();
+  const submitOrder = useSubmitStickerOrder();
+
+  // Notifications
+  const { supported, permission, requestPermission } = useNotifications();
+  useMessagePoller({
+    actor,
+    notificationsGranted: permission === "granted",
+    enabled: !!actor && !!identity,
+  });
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [mailingAddress, setMailingAddress] = useState("");
+  const [vehicleDescription, setVehicleDescription] = useState("");
+  const [orderSubmitted, setOrderSubmitted] = useState(false);
 
   if (!identity) {
     navigate({ to: "/" });
@@ -91,6 +133,25 @@ export default function DashboardPage() {
   const handleLogout = () => {
     clear();
     navigate({ to: "/" });
+  };
+
+  const handleSubmitOrder = async () => {
+    if (!mailingAddress.trim() || !vehicleDescription.trim()) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    try {
+      await submitOrder.mutateAsync({
+        mailingAddress: mailingAddress.trim(),
+        vehicleDescription: vehicleDescription.trim(),
+      });
+      setOrderSubmitted(true);
+      setMailingAddress("");
+      setVehicleDescription("");
+      toast.success("Sticker order submitted! We'll mail it to you soon.");
+    } catch {
+      toast.error("Failed to submit order");
+    }
   };
 
   return (
@@ -255,6 +316,23 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Print Temporary Sticker */}
+                <div className="border-t border-border pt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full border-teal-DEFAULT text-teal-DEFAULT hover:bg-teal-DEFAULT hover:text-white transition-colors"
+                    onClick={() => navigate({ to: "/print-sticker" })}
+                    data-ocid="dashboard.print_button"
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print Temporary Sticker
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Print a temporary sticker while you wait for your physical
+                    one
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -266,14 +344,47 @@ export default function DashboardPage() {
                     <Inbox className="w-5 h-5 text-teal-DEFAULT" />
                     Messages
                   </span>
-                  {messages && messages.length > 0 && (
-                    <Badge
-                      className="bg-teal-DEFAULT text-white"
-                      data-ocid="inbox.badge"
-                    >
-                      {messages.length}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Notification permission badge/button */}
+                    {supported && permission === "default" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs border-teal-DEFAULT text-teal-DEFAULT hover:bg-teal-DEFAULT hover:text-white transition-colors gap-1"
+                        onClick={requestPermission}
+                        data-ocid="inbox.enable_notifications_button"
+                      >
+                        <BellRing className="w-3.5 h-3.5" />
+                        Enable Notifications
+                      </Button>
+                    )}
+                    {supported && permission === "granted" && (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5"
+                        data-ocid="inbox.notifications_on_badge"
+                      >
+                        <BellRing className="w-3 h-3" />
+                        Notifications on
+                      </span>
+                    )}
+                    {supported && permission === "denied" && (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                        data-ocid="inbox.notifications_blocked_badge"
+                      >
+                        <BellOff className="w-3.5 h-3.5" />
+                        Notifications blocked
+                      </span>
+                    )}
+                    {messages && messages.length > 0 && (
+                      <Badge
+                        className="bg-teal-DEFAULT text-white"
+                        data-ocid="inbox.badge"
+                      >
+                        {messages.length}
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -331,8 +442,179 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Sticker Order Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="mt-8 grid lg:grid-cols-2 gap-8"
+          >
+            {/* Order Form */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sticker className="w-5 h-5 text-teal-DEFAULT" />
+                  Order a Physical Sticker
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {orderSubmitted ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center py-8"
+                    data-ocid="sticker_order.success_state"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-teal-DEFAULT/10 flex items-center justify-center mx-auto mb-4">
+                      <Check className="w-7 h-7 text-teal-DEFAULT" />
+                    </div>
+                    <h3 className="font-semibold text-foreground text-lg mb-1">
+                      Order Submitted!
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      We'll print your QR sticker and mail it to you. Check the
+                      status below.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => setOrderSubmitted(false)}
+                      data-ocid="sticker_order.secondary_button"
+                    >
+                      Place Another Order
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      We'll print your QR code on a weatherproof sticker and
+                      mail it directly to you.
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="vehicle-desc">Vehicle Description</Label>
+                      <Input
+                        id="vehicle-desc"
+                        placeholder="e.g. Red Toyota Camry, 2018"
+                        value={vehicleDescription}
+                        onChange={(e) => setVehicleDescription(e.target.value)}
+                        data-ocid="sticker_order.input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="mailing-address">Mailing Address</Label>
+                      <Textarea
+                        id="mailing-address"
+                        placeholder="123 Main St&#10;City, State ZIP&#10;Country"
+                        value={mailingAddress}
+                        onChange={(e) => setMailingAddress(e.target.value)}
+                        rows={4}
+                        data-ocid="sticker_order.textarea"
+                      />
+                    </div>
+                    <Button
+                      className="w-full bg-teal-DEFAULT hover:bg-teal-dark text-white"
+                      onClick={handleSubmitOrder}
+                      disabled={submitOrder.isPending}
+                      data-ocid="sticker_order.submit_button"
+                    >
+                      {submitOrder.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Package className="w-4 h-4 mr-2" />
+                      )}
+                      {submitOrder.isPending
+                        ? "Submitting..."
+                        : "Request Sticker"}
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* My Orders */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-teal-DEFAULT" />
+                  My Sticker Orders
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {ordersLoading ? (
+                  <div className="space-y-3" data-ocid="orders.loading_state">
+                    {[1, 2].map((i) => (
+                      <Skeleton key={i} className="h-20 rounded-xl" />
+                    ))}
+                  </div>
+                ) : !myOrders || myOrders.length === 0 ? (
+                  <div
+                    className="text-center py-10"
+                    data-ocid="orders.empty_state"
+                  >
+                    <Package className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                    <p className="text-muted-foreground font-medium text-sm">
+                      No orders yet
+                    </p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      Request a physical sticker using the form
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myOrders.map((order, idx) => (
+                      <motion.div
+                        key={String(order.orderId)}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="bg-muted rounded-xl p-4"
+                        data-ocid={`orders.item.${idx + 1}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {order.vehicleDescription}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                              {order.mailingAddress}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={getStatusVariant(order.status)}
+                            className={
+                              "mailed" in order.status
+                                ? "bg-teal-DEFAULT text-white"
+                                : ""
+                            }
+                          >
+                            {getStatusLabel(order.status)}
+                          </Badge>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
       </main>
+
+      <footer className="border-t border-border mt-16 py-6">
+        <p className="text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()}. Built with love using{" "}
+          <a
+            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground"
+          >
+            caffeine.ai
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }

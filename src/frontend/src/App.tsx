@@ -6,10 +6,11 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  redirect,
 } from "@tanstack/react-router";
+import AdminPage from "./pages/AdminPage";
 import DashboardPage from "./pages/DashboardPage";
 import LandingPage from "./pages/LandingPage";
+import PrintStickerPage from "./pages/PrintStickerPage";
 import ScanPage from "./pages/ScanPage";
 import SendMessagePage from "./pages/SendMessagePage";
 
@@ -48,11 +49,25 @@ const scanRoute = createRoute({
   component: ScanPage,
 });
 
+const printStickerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/print-sticker",
+  component: PrintStickerPage,
+});
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
   sendRoute,
   scanRoute,
+  printStickerRoute,
+  adminRoute,
 ]);
 
 const router = createRouter({ routeTree });

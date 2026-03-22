@@ -1,7 +1,23 @@
 import { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Message, UserProfile } from "../backend.d";
+import { createActorWithConfig } from "../config";
 import { useActor } from "./useActor";
+
+export type StickerOrderStatus =
+  | { pending: null }
+  | { printed: null }
+  | { mailed: null };
+
+export interface StickerOrder {
+  orderId: bigint;
+  userId: Principal;
+  displayName: string;
+  mailingAddress: string;
+  vehicleDescription: string;
+  status: StickerOrderStatus;
+  createdAt: bigint;
+}
 
 export function useInbox() {
   const { actor, isFetching } = useActor();
@@ -66,9 +82,93 @@ export function useSendMessage() {
       text,
       senderNote,
     }: { recipientId: string; text: string; senderNote?: string }) => {
-      if (!actor) throw new Error("No actor available");
+      // Get or create an anonymous actor if the hook actor isn't ready yet
+      const resolvedActor = actor ?? (await createActorWithConfig());
       const principal = Principal.fromText(recipientId);
-      return actor.sendMessage(principal, text, senderNote || null);
+      return resolvedActor.sendMessage(principal, text, senderNote ?? null);
     },
+  });
+}
+
+export function useMyOrders() {
+  const { actor, isFetching } = useActor();
+  return useQuery<StickerOrder[]>({
+    queryKey: ["myOrders"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return (actor as any).getMyOrders();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useStickerOrders() {
+  const { actor, isFetching } = useActor();
+  return useQuery<StickerOrder[]>({
+    queryKey: ["stickerOrders"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getStickerOrders();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSubmitStickerOrder() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      mailingAddress,
+      vehicleDescription,
+    }: {
+      mailingAddress: string;
+      vehicleDescription: string;
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).submitStickerOrder(
+        mailingAddress,
+        vehicleDescription,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myOrders"] });
+    },
+  });
+}
+
+export function useUpdateOrderStatus() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      status,
+    }: {
+      orderId: bigint;
+      status: StickerOrderStatus;
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).updateStickerOrderStatus(orderId, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stickerOrders"] });
+    },
+  });
+}
+
+export function useIsAdmin() {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean>({
+    queryKey: ["isAdmin"],
+    queryFn: async () => {
+      if (!actor) return false;
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !isFetching,
   });
 }

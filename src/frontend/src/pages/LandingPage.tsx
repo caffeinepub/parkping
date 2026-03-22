@@ -107,11 +107,12 @@ export default function LandingPage() {
       {/* Nav */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-border shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-teal-DEFAULT flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl text-foreground">ParkPing</span>
+          <div className="flex items-center">
+            <img
+              src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+              alt="ParkPing"
+              className="h-10 w-auto"
+            />
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <a
@@ -388,7 +389,11 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg bg-teal-DEFAULT flex items-center justify-center">
                 <Shield className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-foreground">ParkPing</span>
+              <img
+                src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+                alt="ParkPing"
+                className="h-7 w-auto"
+              />
             </div>
             <div className="flex gap-6 text-sm text-muted-foreground">
               <a

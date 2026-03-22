@@ -81,10 +81,11 @@ export default function ScanPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-teal-DEFAULT flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold">ParkPing</span>
+            <img
+              src="/assets/generated/parkping-logo-transparent.dim_400x120.png"
+              alt="ParkPing"
+              className="h-8 w-auto"
+            />
           </div>
         </div>
       </header>

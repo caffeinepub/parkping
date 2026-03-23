@@ -109,7 +109,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center">
             <img
-              src="/assets/uploads/image-2-1.png"
+              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
               alt="ParkPing"
               className="h-9 w-auto"
             />
@@ -166,8 +166,8 @@ export default function LandingPage() {
               className="flex justify-center order-2 lg:order-1"
             >
               <img
-                src="/assets/generated/phone-mockup-transparent.dim_400x700.png"
-                alt="ParkPing app on phone"
+                src="/assets/generated/parkping-phone-straight-pro.dim_500x900.png"
+                alt="ParkPing app"
                 className="w-64 sm:w-80 drop-shadow-2xl"
               />
             </motion.div>
@@ -192,9 +192,6 @@ export default function LandingPage() {
                 <h3 className="font-semibold text-lg mb-1">
                   Get your free QR code
                 </h3>
-                <p className="text-white/70 text-sm mb-4">
-                  Create your account in seconds, no credit card needed.
-                </p>
                 <div className="flex gap-3 flex-col sm:flex-row">
                   <Input
                     type="email"
@@ -393,7 +390,7 @@ export default function LandingPage() {
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <img
-                src="/assets/uploads/image-2-1.png"
+                src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
                 alt="ParkPing"
                 className="h-7 w-auto"
               />

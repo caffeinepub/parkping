@@ -37,12 +37,6 @@ module {
     };
   };
 
-  // Force-assign admin to a principal (used for token-based claim)
-  public func forceSetAdmin(state : AccessControlState, user : Principal) {
-    state.userRoles.add(user, #admin);
-    state.adminAssigned := true;
-  };
-
   public func getUserRole(state : AccessControlState, caller : Principal) : UserRole {
     if (caller.isAnonymous()) { return #guest };
     switch (state.userRoles.get(caller)) {

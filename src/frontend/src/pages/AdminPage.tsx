@@ -86,9 +86,35 @@ export default function AdminPage() {
   const [updatingId, setUpdatingId] = useState<bigint | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
 
+  const { login, isLoggingIn } = useInternetIdentity();
+
   if (!identity) {
-    navigate({ to: "/" });
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-8">
+          <div className="w-16 h-16 rounded-2xl bg-teal-DEFAULT flex items-center justify-center mx-auto">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
+          <p className="text-muted-foreground">
+            Please log in to access the admin panel.
+          </p>
+          <Button
+            className="bg-teal-DEFAULT hover:bg-teal-dark text-white px-8"
+            onClick={login}
+            disabled={isLoggingIn}
+            data-ocid="admin.primary_button"
+          >
+            {isLoggingIn ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Shield className="w-4 h-4 mr-2" />
+            )}
+            {isLoggingIn ? "Logging in..." : "Login to Access Admin"}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const handleUpdateStatus = async (
@@ -188,7 +214,7 @@ export default function AdminPage() {
               </Button>
               <Button
                 variant="outline"
-                className="mt-3 ml-3"
+                className="mt-3 ml-3 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                 onClick={() => navigate({ to: "/claim-admin" })}
                 data-ocid="admin.secondary_button"
               >
@@ -317,7 +343,7 @@ export default function AdminPage() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-xs h-7"
+                                        className="text-xs h-7 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                                         disabled={updatingId === order.orderId}
                                         onClick={() =>
                                           handleUpdateStatus(order.orderId, {
@@ -401,7 +427,7 @@ export default function AdminPage() {
                           size="sm"
                           onClick={handleCopyToken}
                           disabled={!setupToken}
-                          className="shrink-0"
+                          className="shrink-0 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                           data-ocid="admin.secondary_button"
                         >
                           {copiedToken ? (
@@ -417,7 +443,7 @@ export default function AdminPage() {
                         size="sm"
                         onClick={handleResetToken}
                         disabled={resetToken.isPending}
-                        className="text-xs"
+                        className="text-xs border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                         data-ocid="admin.edit_button"
                       >
                         {resetToken.isPending ? (

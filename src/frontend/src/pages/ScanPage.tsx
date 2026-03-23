@@ -82,7 +82,7 @@ export default function ScanPage() {
           </button>
           <div className="flex items-center gap-2">
             <img
-              src="/assets/uploads/image-2-1.png"
+              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
               alt="ParkPing"
               className="h-8 w-auto"
             />

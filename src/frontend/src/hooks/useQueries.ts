@@ -216,3 +216,57 @@ export function useResetAdminToken() {
     },
   });
 }
+
+export interface Vehicle {
+  id: bigint;
+  name: string;
+  description: string;
+  createdAt: bigint;
+}
+
+export function useMyVehicles() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Vehicle[]>({
+    queryKey: ["myVehicles"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return (actor as any).getMyVehicles();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddVehicle() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      description,
+    }: { name: string; description: string }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).addVehicle(name, description);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myVehicles"] });
+    },
+  });
+}
+
+export function useRemoveVehicle() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vehicleId: bigint) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).removeVehicle(vehicleId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myVehicles"] });
+    },
+  });
+}

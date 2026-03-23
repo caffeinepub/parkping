@@ -10,6 +10,7 @@ import {
   Bell,
   BellOff,
   BellRing,
+  Car,
   Check,
   Copy,
   Download,
@@ -18,9 +19,11 @@ import {
   Loader2,
   LogOut,
   Package,
+  Plus,
   Printer,
   Shield,
   Sticker,
+  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -33,9 +36,13 @@ import { useMessagePoller } from "../hooks/useMessagePoller";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   type StickerOrderStatus,
+  type Vehicle,
+  useAddVehicle,
   useCallerProfile,
   useInbox,
   useMyOrders,
+  useMyVehicles,
+  useRemoveVehicle,
   useSaveProfile,
   useSubmitStickerOrder,
 } from "../hooks/useQueries";
@@ -74,6 +81,9 @@ export default function DashboardPage() {
   const saveProfile = useSaveProfile();
   const { data: myOrders, isLoading: ordersLoading } = useMyOrders();
   const submitOrder = useSubmitStickerOrder();
+  const { data: myVehicles, isLoading: vehiclesLoading } = useMyVehicles();
+  const addVehicle = useAddVehicle();
+  const removeVehicle = useRemoveVehicle();
 
   // Notifications
   const { supported, permission, requestPermission } = useNotifications();
@@ -89,6 +99,9 @@ export default function DashboardPage() {
   const [mailingAddress, setMailingAddress] = useState("");
   const [vehicleDescription, setVehicleDescription] = useState("");
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [newVehicleName, setNewVehicleName] = useState("");
+  const [newVehicleDesc, setNewVehicleDesc] = useState("");
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
   if (!identity) {
     navigate({ to: "/" });
@@ -165,7 +178,7 @@ export default function DashboardPage() {
             data-ocid="nav.link"
           >
             <img
-              src="/assets/uploads/image-2-1.png"
+              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
               alt="ParkPing"
               className="h-9 w-auto"
             />
@@ -182,6 +195,7 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={handleLogout}
+              className="border-gray-300 text-gray-700 hover:bg-gray-100"
               data-ocid="nav.secondary_button"
             >
               <LogOut className="w-4 h-4 mr-1" />
@@ -300,7 +314,7 @@ export default function DashboardPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                     onClick={handleCopyLink}
                     data-ocid="dashboard.secondary_button"
                   >
@@ -483,7 +497,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-4"
+                      className="mt-4 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                       onClick={() => setOrderSubmitted(false)}
                       data-ocid="sticker_order.secondary_button"
                     >
@@ -599,6 +613,268 @@ export default function DashboardPage() {
                       </motion.div>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* My Vehicles Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="mt-8"
+          >
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Car className="w-5 h-5 text-teal-DEFAULT" />
+                  My Vehicles
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Base subscription: $9.99/year. Each additional vehicle:
+                  $9.99/year.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {vehiclesLoading ? (
+                  <div className="space-y-3" data-ocid="vehicles.loading_state">
+                    {[1, 2].map((i) => (
+                      <Skeleton key={i} className="h-24 rounded-xl" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {/* Primary QR (base vehicle) */}
+                    <div className="bg-muted rounded-xl p-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="flex-shrink-0">
+                          {qrApiUrl && (
+                            <img
+                              src={qrApiUrl}
+                              alt="Primary Vehicle QR"
+                              className="w-28 h-28 rounded-lg border border-border"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-foreground">
+                              Primary Vehicle
+                            </span>
+                            <Badge className="bg-teal-DEFAULT/10 text-teal-DEFAULT border-0 text-xs">
+                              Base
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Your default parking QR code
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
+                              onClick={handleDownloadQR}
+                              data-ocid="vehicles.primary_button"
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Download
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                              onClick={handleCopyLink}
+                              data-ocid="vehicles.secondary_button"
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              Copy Link
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Vehicles */}
+                    {myVehicles && myVehicles.length > 0 ? (
+                      <div className="space-y-3">
+                        {myVehicles.map((vehicle: Vehicle, idx: number) => {
+                          const vQrUrl = `${window.location.origin}/send?to=${principal}&vehicle=${vehicle.id}`;
+                          const vQrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(vQrUrl)}`;
+                          return (
+                            <motion.div
+                              key={String(vehicle.id)}
+                              initial={{ opacity: 0, x: 10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: idx * 0.05 }}
+                              className="bg-muted rounded-xl p-4"
+                              data-ocid={`vehicles.item.${idx + 1}`}
+                            >
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={vQrApiUrl}
+                                    alt={vehicle.name}
+                                    className="w-28 h-28 rounded-lg border border-border"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-foreground mb-0.5">
+                                    {vehicle.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-3">
+                                    {vehicle.description}
+                                  </p>
+                                  <div className="flex gap-2 flex-wrap">
+                                    <Button
+                                      size="sm"
+                                      className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
+                                      onClick={() => {
+                                        const link =
+                                          document.createElement("a");
+                                        link.href = vQrApiUrl;
+                                        link.download = `parkping-${vehicle.name}.png`;
+                                        link.click();
+                                      }}
+                                      data-ocid={`vehicles.primary_button.${idx + 1}`}
+                                    >
+                                      <Download className="w-3 h-3 mr-1" />
+                                      Download
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(vQrUrl);
+                                        toast.success("Link copied!");
+                                      }}
+                                      data-ocid={`vehicles.secondary_button.${idx + 1}`}
+                                    >
+                                      <Copy className="w-3 h-3 mr-1" />
+                                      Copy Link
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
+                                      onClick={async () => {
+                                        try {
+                                          await removeVehicle.mutateAsync(
+                                            vehicle.id,
+                                          );
+                                          toast.success("Vehicle removed");
+                                        } catch {
+                                          toast.error(
+                                            "Failed to remove vehicle",
+                                          );
+                                        }
+                                      }}
+                                      disabled={removeVehicle.isPending}
+                                      data-ocid={`vehicles.delete_button.${idx + 1}`}
+                                    >
+                                      <Trash2 className="w-3 h-3 mr-1" />
+                                      Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className="text-center py-6 text-muted-foreground"
+                        data-ocid="vehicles.empty_state"
+                      >
+                        <Car className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">
+                          No extra vehicles yet. Add one below.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Add Vehicle Form */}
+                    {showAddVehicle ? (
+                      <div className="border border-border rounded-xl p-4 space-y-3">
+                        <p className="font-semibold text-foreground text-sm">
+                          Add New Vehicle
+                        </p>
+                        <div className="space-y-1">
+                          <Label htmlFor="veh-name">Vehicle Name</Label>
+                          <Input
+                            id="veh-name"
+                            placeholder="e.g. Blue Honda Civic"
+                            value={newVehicleName}
+                            onChange={(e) => setNewVehicleName(e.target.value)}
+                            data-ocid="vehicles.input"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="veh-desc">
+                            Description (optional)
+                          </Label>
+                          <Input
+                            id="veh-desc"
+                            placeholder="e.g. 2020, license plate ABC123"
+                            value={newVehicleDesc}
+                            onChange={(e) => setNewVehicleDesc(e.target.value)}
+                            data-ocid="vehicles.textarea"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
+                            onClick={async () => {
+                              if (!newVehicleName.trim()) {
+                                toast.error("Please enter a vehicle name");
+                                return;
+                              }
+                              try {
+                                await addVehicle.mutateAsync({
+                                  name: newVehicleName.trim(),
+                                  description: newVehicleDesc.trim(),
+                                });
+                                setNewVehicleName("");
+                                setNewVehicleDesc("");
+                                setShowAddVehicle(false);
+                                toast.success("Vehicle added!");
+                              } catch {
+                                toast.error("Failed to add vehicle");
+                              }
+                            }}
+                            disabled={addVehicle.isPending}
+                            data-ocid="vehicles.submit_button"
+                          >
+                            {addVehicle.isPending ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4 mr-2" />
+                            )}
+                            Add Vehicle
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                            onClick={() => setShowAddVehicle(false)}
+                            data-ocid="vehicles.cancel_button"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                        onClick={() => setShowAddVehicle(true)}
+                        data-ocid="vehicles.open_modal_button"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Another Vehicle (+$9.99/year)
+                      </Button>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>

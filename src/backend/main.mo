@@ -6,6 +6,7 @@ import Order "mo:core/Order";
 import Array "mo:core/Array";
 import Iter "mo:core/Iter";
 import Nat "mo:core/Nat";
+import Int "mo:core/Int";
 import Runtime "mo:core/Runtime";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
@@ -41,6 +42,19 @@ actor {
     createdAt : Time.Time;
   };
 
+  public type Vehicle = {
+    id : Nat;
+    name : Text;
+    description : Text;
+    createdAt : Time.Time;
+  };
+
+  public type SubscriptionStatus = {
+    paidUntil : Int;
+    vehicleCount : Nat;
+    isActive : Bool;
+  };
+
   module Message {
     public func compareByTimestampDesc(a : Message, b : Message) : Order.Order {
       Nat.compare(a.id, b.id);
@@ -54,6 +68,13 @@ actor {
 
   var nextOrderId = 0;
   let stickerOrders = Map.empty<Nat, StickerOrder>();
+
+  // Vehicles: userId -> [Vehicle]
+  let userVehicles = Map.empty<UserId, [Vehicle]>();
+  var nextVehicleId = 0;
+
+  // Subscription: userId -> paidUntil timestamp (nanoseconds)
+  let subscriptions = Map.empty<UserId, Int>();
 
   // Admin setup token for /claim-admin flow
   var adminSetupToken : Text = "parkping-admin-setup";
@@ -76,7 +97,8 @@ actor {
     if (token != adminSetupToken) {
       Runtime.trap("Invalid admin setup token");
     };
-    AccessControl.forceSetAdmin(accessControlState, caller);
+    accessControlState.userRoles.add(caller, #admin);
+    accessControlState.adminAssigned := true;
     // Rotate token after successful claim
     adminTokenVersion += 1;
     adminSetupToken := "parkping-admin-" # adminTokenVersion.toText();
@@ -208,5 +230,97 @@ actor {
       Runtime.trap("Unauthorized: Only users can view orders");
     };
     stickerOrders.values().toArray().filter(func(o) { o.userId == caller });
+  };
+
+  // Vehicle management
+  public shared ({ caller }) func addVehicle(name : Text, description : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can add vehicles");
+    };
+    let vehicleId = nextVehicleId;
+    let vehicle : Vehicle = {
+      id = vehicleId;
+      name;
+      description;
+      createdAt = Time.now();
+    };
+    let existing = switch (userVehicles.get(caller)) {
+      case (?arr) arr;
+      case null [];
+    };
+    userVehicles.add(caller, existing.concat([vehicle]));
+    nextVehicleId += 1;
+    vehicleId;
+  };
+
+  public query ({ caller }) func getMyVehicles() : async [Vehicle] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view vehicles");
+    };
+    switch (userVehicles.get(caller)) {
+      case (?arr) arr;
+      case null [];
+    };
+  };
+
+  public shared ({ caller }) func removeVehicle(vehicleId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can remove vehicles");
+    };
+    let existing = switch (userVehicles.get(caller)) {
+      case (?arr) arr;
+      case null [];
+    };
+    let filtered = existing.filter(func(v : Vehicle) : Bool { v.id != vehicleId });
+    userVehicles.add(caller, filtered);
+  };
+
+  // Subscription management
+  public query ({ caller }) func getMySubscriptionStatus() : async SubscriptionStatus {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view subscription status");
+    };
+    let paidUntil = switch (subscriptions.get(caller)) {
+      case (?t) t;
+      case null 0;
+    };
+    let vehicleCount = switch (userVehicles.get(caller)) {
+      case (?arr) arr.size();
+      case null 0;
+    };
+    let isActive = paidUntil > Time.now();
+    { paidUntil; vehicleCount; isActive };
+  };
+
+  // Admin: mark subscription paid for a user (adds years from now)
+  public shared ({ caller }) func markSubscriptionPaid(userId : UserId, years : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    let current = switch (subscriptions.get(userId)) {
+      case (?t) if (t > Time.now()) t else Time.now();
+      case null Time.now();
+    };
+    // 1 year = 365 * 24 * 60 * 60 * 1_000_000_000 nanoseconds
+    let oneYear : Int = 365 * 24 * 60 * 60 * 1_000_000_000;
+    subscriptions.add(userId, current + oneYear * years);
+  };
+
+  // Admin: get all users with subscription info
+  public query ({ caller }) func getAllUsers() : async [{ userId: UserId; displayName: Text; subscriptionPaidUntil: Int; vehicleCount: Nat }] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    userProfiles.entries().toArray().map(func((userId, profile)) {
+      let paidUntil = switch (subscriptions.get(userId)) {
+        case (?t) t;
+        case null 0;
+      };
+      let vehicleCount = switch (userVehicles.get(userId)) {
+        case (?arr) arr.size();
+        case null 0;
+      };
+      { userId; displayName = profile.displayName; subscriptionPaidUntil = paidUntil; vehicleCount };
+    });
   };
 };

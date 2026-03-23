@@ -23,6 +23,27 @@ export interface UserProfile { 'contactInfo' : string, 'displayName' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export type StickerOrderStatus = { 'pending' : null } | { 'printed' : null } | { 'mailed' : null };
+export interface StickerOrder {
+  'orderId' : bigint,
+  'userId' : UserId,
+  'displayName' : string,
+  'mailingAddress' : string,
+  'vehicleDescription' : string,
+  'status' : StickerOrderStatus,
+  'createdAt' : Time,
+}
+export interface Vehicle {
+  'id' : bigint,
+  'name' : string,
+  'description' : string,
+  'createdAt' : Time,
+}
+export interface SubscriptionStatus {
+  'paidUntil' : bigint,
+  'vehicleCount' : bigint,
+  'isActive' : boolean,
+}
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -34,6 +55,19 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'sendMessage' : ActorMethod<[UserId, string, [] | [string]], bigint>,
+  'submitStickerOrder' : ActorMethod<[string, string], bigint>,
+  'getStickerOrders' : ActorMethod<[], Array<StickerOrder>>,
+  'updateStickerOrderStatus' : ActorMethod<[bigint, StickerOrderStatus], undefined>,
+  'getMyOrders' : ActorMethod<[], Array<StickerOrder>>,
+  'addVehicle' : ActorMethod<[string, string], bigint>,
+  'getMyVehicles' : ActorMethod<[], Array<Vehicle>>,
+  'removeVehicle' : ActorMethod<[bigint], undefined>,
+  'getMySubscriptionStatus' : ActorMethod<[], SubscriptionStatus>,
+  'markSubscriptionPaid' : ActorMethod<[UserId, bigint], undefined>,
+  'getAllUsers' : ActorMethod<[], Array<{ 'userId' : UserId, 'displayName' : string, 'subscriptionPaidUntil' : bigint, 'vehicleCount' : bigint }>>,
+  'getAdminSetupToken' : ActorMethod<[], string>,
+  'claimAdmin' : ActorMethod<[string], undefined>,
+  'resetAdminSetupToken' : ActorMethod<[], string>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

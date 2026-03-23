@@ -46,9 +46,9 @@ export default {
           darker: "oklch(var(--hero-darker))",
         },
         teal: {
-          DEFAULT: "oklch(0.67 0.12 185)",
+          DEFAULT: "oklch(0.48 0.13 185)",
           light: "oklch(0.93 0.04 185)",
-          dark: "oklch(0.50 0.10 185)",
+          dark: "oklch(0.36 0.12 185)",
         },
         navy: {
           DEFAULT: "oklch(0.20 0.055 225)",

@@ -13,7 +13,7 @@ import { useAdminSetupToken, useClaimAdmin } from "../hooks/useQueries";
 
 export default function ClaimAdminPage() {
   const navigate = useNavigate();
-  const { identity } = useInternetIdentity();
+  const { identity, login, isLoggingIn } = useInternetIdentity();
   const claimAdmin = useClaimAdmin();
   const { data: setupToken, isLoading: tokenLoading } = useAdminSetupToken();
   const [token, setToken] = useState("");
@@ -53,10 +53,18 @@ export default function ClaimAdminPage() {
             </p>
             <Button
               className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
-              onClick={() => navigate({ to: "/" })}
+              onClick={login}
+              disabled={isLoggingIn}
               data-ocid="claim_admin.primary_button"
             >
-              Go to Login
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login with Internet Identity"
+              )}
             </Button>
           </div>
         </main>

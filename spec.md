@@ -1,34 +1,37 @@
 # ParkPing
 
 ## Current State
-- Backend has `MixinAuthorization` and `AccessControl` modules for role-based admin access
-- Frontend has `/claim-admin` page that calls `actor.claimAdmin(token)` -- but this function does NOT exist in the backend
-- Admin token is stored as a CAFFEINE_ADMIN_TOKEN env var but is never exposed or usable from the UI
-- User cannot access the admin panel because they don't know the token and the claim function is missing
+- Full-stack app with Motoko backend and React frontend
+- One-way messaging: sender sends a message to a vehicle owner via QR code scan
+- Vehicle owner views messages in their inbox on the Dashboard
+- Blob-storage now added for file/media uploads
+- UI uses "car", "Car Owner", and "Dashboard" in various text labels
 
 ## Requested Changes (Diff)
 
 ### Add
-- `forceSetAdmin(state, user)` function in `access-control.mo` to directly assign admin
-- `adminSetupToken` mutable variable in `main.mo` with a readable default value
-- `adminTokenVersion` counter in `main.mo` for token rotation
-- `claimAdmin(token: Text)` shared function in `main.mo` -- verifies token, assigns admin, rotates token
-- `getAdminSetupToken()` query in `main.mo` -- public when no admin assigned, admin-only otherwise
-- `resetAdminSetupToken()` shared function in `main.mo` -- admin-only, rotates token and returns new one
-- Token display section on `/claim-admin` page: auto-fetches the token, shows it with a Copy button
-- Token reset section on `/admin` page for the admin to rotate the token
+- Bidirectional chat sessions between vehicle owner and message sender
+  - A chat session is created when a message is sent via QR code
+  - Both parties can send text messages, images, and videos within the session
+  - Either party can end the chat at any time
+  - Sender gets a persistent chat link (session ID in URL) to return to the conversation
+  - Owner can view and reply to chats from their inbox/dashboard
+- Media attachment support in chat (images and videos via blob-storage)
+- Backend: ChatSession type, ChatMessage type with optional media, create/get/reply/end session APIs
 
 ### Modify
-- `access-control.mo`: add `forceSetAdmin` export
-- `ClaimAdminPage.tsx`: fetch and display current setup token with copy button above the form
-- `AdminPage.tsx`: add Admin Token card showing token and reset button
+- Replace all UI text instances of "car" / "Car" / "CAR" with "vehicle" / "Vehicle" / "VEHICLE" (do not change code variable names or icon names)
+- Replace all UI text instances of "dashboard" / "Dashboard" with "windshield glass" / "Windshield Glass"
+- SendMessagePage: transform from one-shot form into a full chat UI (create session on first message, then continue chat)
+- DashboardPage: inbox shows chat sessions; clicking a session opens a chat UI where owner can reply and end the chat
 
 ### Remove
-- Nothing removed
+- Old one-way message inbox in favor of chat sessions
 
 ## Implementation Plan
-1. Add `forceSetAdmin` to `access-control.mo`
-2. Add `adminSetupToken`, `claimAdmin`, `getAdminSetupToken`, `resetAdminSetupToken` to `main.mo`
-3. Update `ClaimAdminPage.tsx` to fetch and display the token
-4. Update `AdminPage.tsx` to show/reset the admin token
-5. Add query hooks `useAdminSetupToken` and `useResetAdminToken` to `useQueries.ts`
+1. Add ChatSession and ChatMessage types to backend with create, get, reply, end, and list APIs
+2. Keep blob-storage integration for media upload in chat
+3. Update SendMessagePage to create a chat session and show full chat UI with media upload
+4. Update DashboardPage inbox to list chat sessions and open a chat view for each
+5. Replace all "car" text with "vehicle" and "Dashboard" with "Windshield Glass" in UI labels throughout all pages
+6. Add polling for new chat messages (extend useMessagePoller or add new hook)

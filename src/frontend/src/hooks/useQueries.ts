@@ -1,6 +1,7 @@
 import { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Message, UserProfile } from "../backend.d";
+import type { UserProfile } from "../backend";
+import type { ChatSession, Message } from "../backend.d";
 import { createActorWithConfig } from "../config";
 import { useActor } from "./useActor";
 
@@ -82,7 +83,6 @@ export function useSendMessage() {
       text,
       senderNote,
     }: { recipientId: string; text: string; senderNote?: string }) => {
-      // Get or create an anonymous actor if the hook actor isn't ready yet
       const resolvedActor = actor ?? (await createActorWithConfig());
       const principal = Principal.fromText(recipientId);
       return resolvedActor.sendMessage(principal, text, senderNote ?? null);
@@ -303,6 +303,121 @@ export function useMarkSubscriptionPaid() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+  });
+}
+
+// ─── Chat Hooks ──────────────────────────────────────────────────────────────
+
+export function useOwnerChatSessions() {
+  const { actor, isFetching } = useActor();
+  return useQuery<ChatSession[]>({
+    queryKey: ["ownerChatSessions"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getOwnerChatSessions();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 5000,
+  });
+}
+
+export function useChatSession(sessionId: string | null, active = true) {
+  const { actor, isFetching } = useActor();
+  return useQuery<ChatSession | null>({
+    queryKey: ["chatSession", sessionId],
+    queryFn: async () => {
+      if (!sessionId) return null;
+      // Support unauthenticated access (sender)
+      const resolvedActor = actor ?? (await createActorWithConfig());
+      return resolvedActor.getChatSession(sessionId);
+    },
+    enabled: !!sessionId && (!isFetching || !actor),
+    refetchInterval: active ? 3000 : false,
+  });
+}
+
+export function useCreateChatSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      ownerId,
+      text,
+      mediaUrl,
+    }: {
+      ownerId: string;
+      text: string;
+      mediaUrl?: string;
+    }) => {
+      const resolvedActor = await createActorWithConfig();
+      const principal = Principal.fromText(ownerId);
+      return resolvedActor.createChatSession(principal, text, mediaUrl ?? null);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ownerChatSessions"] });
+    },
+  });
+}
+
+export function useSendChatMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      text,
+      mediaUrl,
+      fromOwner,
+    }: {
+      sessionId: string;
+      text: string;
+      mediaUrl?: string;
+      fromOwner: boolean;
+    }) => {
+      const resolvedActor = actor ?? (await createActorWithConfig());
+      return resolvedActor.sendChatMessage(
+        sessionId,
+        text,
+        mediaUrl ?? null,
+        fromOwner,
+      );
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["chatSession", variables.sessionId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["ownerChatSessions"] });
+    },
+  });
+}
+
+export function useEndChatSession() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const resolvedActor = actor ?? (await createActorWithConfig());
+      return resolvedActor.endChatSession(sessionId);
+    },
+    onSuccess: (_data, sessionId) => {
+      queryClient.invalidateQueries({
+        queryKey: ["chatSession", sessionId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["ownerChatSessions"] });
+    },
+  });
+}
+
+export function useMarkSessionRead() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      if (!actor) return;
+      return actor.markSessionRead(sessionId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ownerChatSessions"] });
     },
   });
 }

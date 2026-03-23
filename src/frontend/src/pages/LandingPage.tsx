@@ -27,7 +27,7 @@ const steps = [
     number: "02",
     title: "Stick",
     description:
-      "Print or save your personalized QR code and place it visibly on your car dashboard or windshield.",
+      "Print or save your personalized QR code and place it visibly on your vehicle windshield glass.",
     icon: <QrCode className="w-8 h-8 text-teal-DEFAULT" />,
   },
   {
@@ -42,9 +42,9 @@ const steps = [
 const features = [
   {
     img: "/assets/generated/feature-qr-car.dim_400x300.png",
-    title: "Your Car's Digital ID",
+    title: "Your Vehicle's Digital ID",
     description:
-      "A unique QR code links directly to your inbox. Stick it on your car and stay reachable.",
+      "A unique QR code links directly to your inbox. Stick it on your vehicle and stay reachable.",
   },
   {
     img: "/assets/generated/feature-scan-person.dim_400x300.png",
@@ -56,7 +56,7 @@ const features = [
     img: "/assets/generated/feature-notification.dim_400x300.png",
     title: "Real-Time Alerts",
     description:
-      "Receive anonymous messages about your car straight to your secure inbox.",
+      "Receive anonymous messages about your vehicle straight to your secure inbox.",
   },
 ];
 
@@ -149,7 +149,7 @@ export default function LandingPage() {
             className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
             data-ocid="nav.primary_button"
           >
-            {isLoggedIn ? "Go to Dashboard" : "Get Started"}
+            {isLoggedIn ? "Go to Windshield Glass" : "Get Started"}
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
@@ -182,13 +182,13 @@ export default function LandingPage() {
               className="order-1 lg:order-2"
             >
               <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-4">
-                Your car,{" "}
+                Your vehicle,{" "}
                 <span className="text-teal-DEFAULT">always reachable.</span>
               </h1>
               <p className="text-lg text-white/80 mb-8 leading-relaxed">
-                ParkPing lets anyone leave you a message about your parked car —
-                no phone numbers, no apps, just a simple QR code on your
-                dashboard.
+                ParkPing lets anyone leave you a message about your parked
+                vehicle — no phone numbers, no apps, just a simple QR code on
+                your windshield glass.
               </p>
 
               <div className="hero-card rounded-2xl p-6">
@@ -213,7 +213,7 @@ export default function LandingPage() {
                     {isLoggingIn
                       ? "Connecting..."
                       : isLoggedIn
-                        ? "Go to Dashboard"
+                        ? "Go to Windshield Glass"
                         : "Generate My QR Code"}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -226,7 +226,7 @@ export default function LandingPage() {
                     className="text-teal-DEFAULT hover:underline"
                     data-ocid="hero.link"
                   >
-                    {isLoggedIn ? "Go to Dashboard" : "Login"}
+                    {isLoggedIn ? "Go to Windshield Glass" : "Login"}
                   </button>
                 </p>
               </div>
@@ -259,7 +259,7 @@ export default function LandingPage() {
               How It Works
             </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Three simple steps to stay connected to your car.
+              Three simple steps to stay connected to your vehicle.
             </p>
           </motion.div>
           <div className="grid md:grid-cols-3 gap-8">

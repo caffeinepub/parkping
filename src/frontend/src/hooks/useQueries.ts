@@ -270,3 +270,39 @@ export function useRemoveVehicle() {
     },
   });
 }
+
+export interface AdminUser {
+  userId: Principal;
+  displayName: string;
+  subscriptionPaidUntil: bigint;
+  vehicleCount: bigint;
+}
+
+export function useAllUsers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<AdminUser[]>({
+    queryKey: ["allUsers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getAllUsers();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useMarkSubscriptionPaid() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      years,
+    }: { userId: Principal; years: number }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).markSubscriptionPaid(userId, BigInt(years));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+  });
+}

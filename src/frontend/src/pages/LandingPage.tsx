@@ -166,9 +166,12 @@ export default function LandingPage() {
               className="flex justify-center order-2 lg:order-1"
             >
               <img
-                src="/assets/generated/parkping-phone-straight-pro.dim_500x900.png"
+                src="/assets/generated/parkping-phone-dark-merged.dim_500x900.png"
                 alt="ParkPing app"
-                className="w-64 sm:w-80 drop-shadow-2xl"
+                className="w-64 sm:w-80"
+                style={{
+                  filter: "drop-shadow(0 0 40px oklch(0.48 0.13 185 / 0.25))",
+                }}
               />
             </motion.div>
 

@@ -10,18 +10,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Check,
   CheckCircle,
   Copy,
+  CreditCard,
+  DollarSign,
   Loader2,
   Mail,
   Printer,
   RefreshCw,
   Shield,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -31,7 +35,9 @@ import {
   type StickerOrder,
   type StickerOrderStatus,
   useAdminSetupToken,
+  useAllUsers,
   useIsAdmin,
+  useMarkSubscriptionPaid,
   useResetAdminToken,
   useStickerOrders,
   useUpdateOrderStatus,
@@ -62,6 +68,16 @@ function formatDate(timestamp: bigint): string {
   });
 }
 
+function formatSubDate(timestamp: bigint): string {
+  if (timestamp === 0n) return "—";
+  const ms = Number(timestamp / 1_000_000n);
+  return new Date(ms).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function matchesFilter(order: StickerOrder, filter: FilterTab): boolean {
   if (filter === "all") return true;
   if (filter === "pending") return "pending" in order.status;
@@ -72,21 +88,22 @@ function matchesFilter(order: StickerOrder, filter: FilterTab): boolean {
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const { identity } = useInternetIdentity();
+  const { identity, login, isLoggingIn } = useInternetIdentity();
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
   const {
     data: orders,
     isLoading: ordersLoading,
     error: ordersError,
   } = useStickerOrders();
+  const { data: allUsers, isLoading: usersLoading } = useAllUsers();
   const updateStatus = useUpdateOrderStatus();
+  const markPaid = useMarkSubscriptionPaid();
   const { data: setupToken, isLoading: tokenLoading } = useAdminSetupToken();
   const resetToken = useResetAdminToken();
   const [filter, setFilter] = useState<FilterTab>("all");
   const [updatingId, setUpdatingId] = useState<bigint | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
-
-  const { login, isLoggingIn } = useInternetIdentity();
+  const [extendingUser, setExtendingUser] = useState<string | null>(null);
 
   if (!identity) {
     return (
@@ -149,7 +166,33 @@ export default function AdminPage() {
     }
   };
 
+  const handleExtendSubscription = async (userId: string) => {
+    const { Principal } = await import("@icp-sdk/core/principal");
+    setExtendingUser(userId);
+    try {
+      await markPaid.mutateAsync({
+        userId: Principal.fromText(userId),
+        years: 1,
+      });
+      toast.success("Subscription extended by 1 year");
+    } catch {
+      toast.error("Failed to extend subscription");
+    } finally {
+      setExtendingUser(null);
+    }
+  };
+
   const filteredOrders = orders?.filter((o) => matchesFilter(o, filter)) ?? [];
+
+  const now = BigInt(Date.now()) * 1_000_000n;
+  const activeSubscriptions =
+    allUsers?.filter((u) => u.subscriptionPaidUntil > now).length ?? 0;
+  const expiredSubscriptions =
+    allUsers?.filter((u) => u.subscriptionPaidUntil <= now).length ?? 0;
+  const pendingOrders =
+    orders?.filter((o) => "pending" in o.status).length ?? 0;
+  const totalUsers = allUsers?.length ?? 0;
+  const estimatedRevenue = (activeSubscriptions * 9.99).toFixed(2);
 
   return (
     <div className="min-h-screen bg-background">
@@ -182,15 +225,6 @@ export default function AdminPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-foreground">
-              Sticker Orders
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage and fulfill physical QR sticker orders.
-            </p>
-          </div>
-
           {adminLoading ? (
             <div className="space-y-4" data-ocid="admin.loading_state">
               <Skeleton className="h-10 w-64" />
@@ -223,241 +257,495 @@ export default function AdminPage() {
             </div>
           ) : ordersError ? (
             <div className="text-center py-20" data-ocid="admin.error_state">
-              <p className="text-destructive">Failed to load orders.</p>
+              <p className="text-destructive">Failed to load data.</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              <Card className="shadow-card">
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <Tabs defaultValue="overview">
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">
+                    Admin Panel
+                  </h1>
+                  <p className="text-muted-foreground mt-1">
+                    Manage users, payments, and sticker orders.
+                  </p>
+                </div>
+                <TabsList
+                  className="bg-gray-200 p-1 rounded-lg"
+                  data-ocid="admin.tab"
+                >
+                  <TabsTrigger
+                    value="overview"
+                    className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                  >
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="users"
+                    className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                  >
+                    Users
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="orders"
+                    className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                  >
+                    Sticker Orders
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="settings"
+                    className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                  >
+                    Settings
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* OVERVIEW TAB */}
+              <TabsContent value="overview" className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="shadow-card">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-teal-DEFAULT/10 flex items-center justify-center">
+                          <Users className="w-5 h-5 text-teal-DEFAULT" />
+                        </div>
+                      </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {usersLoading ? "—" : totalUsers}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Total Users
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-card">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        </div>
+                      </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {usersLoading ? "—" : activeSubscriptions}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Active Subscriptions
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-card">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                          <CreditCard className="w-5 h-5 text-red-500" />
+                        </div>
+                      </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {usersLoading ? "—" : expiredSubscriptions}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Expired / No Sub
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-card">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-yellow-600" />
+                        </div>
+                      </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {ordersLoading ? "—" : pendingOrders}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Pending Orders
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="shadow-card border-teal-DEFAULT/20">
+                  <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-teal-DEFAULT" />
-                      Orders
-                      {orders && (
+                      <TrendingUp className="w-5 h-5 text-teal-DEFAULT" />
+                      Revenue Estimate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-end gap-2">
+                      <DollarSign className="w-8 h-8 text-teal-DEFAULT mb-1" />
+                      <span className="text-5xl font-bold text-foreground">
+                        {usersLoading ? "—" : estimatedRevenue}
+                      </span>
+                      <span className="text-muted-foreground mb-2">/year</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Based on {activeSubscriptions} active $9.99/year
+                      subscriptions
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* USERS TAB */}
+              <TabsContent value="users">
+                <Card className="shadow-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-teal-DEFAULT" />
+                      User Management
+                      {allUsers && (
                         <Badge className="bg-teal-DEFAULT text-white ml-1">
-                          {orders.length}
+                          {allUsers.length}
                         </Badge>
                       )}
                     </CardTitle>
-                    <Tabs
-                      value={filter}
-                      onValueChange={(v) => setFilter(v as FilterTab)}
-                    >
-                      <TabsList
-                        className="bg-gray-200 p-1"
-                        data-ocid="admin.tab"
+                  </CardHeader>
+                  <CardContent>
+                    {usersLoading ? (
+                      <div
+                        className="space-y-3"
+                        data-ocid="admin.loading_state"
                       >
-                        <TabsTrigger
-                          value="all"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                        >
-                          All
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="pending"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                        >
-                          Pending
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="printed"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                        >
-                          Printed
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="mailed"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                        >
-                          Mailed
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {ordersLoading ? (
-                    <div className="space-y-3" data-ocid="admin.loading_state">
-                      {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-14 rounded-lg" />
-                      ))}
-                    </div>
-                  ) : filteredOrders.length === 0 ? (
-                    <div
-                      className="text-center py-14"
-                      data-ocid="admin.empty_state"
-                    >
-                      <CheckCircle className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                      <p className="text-muted-foreground font-medium">
-                        No orders in this category
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table data-ocid="admin.table">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Order #</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Vehicle</TableHead>
-                            <TableHead>Mailing Address</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredOrders.map((order, idx) => (
-                            <TableRow
-                              key={String(order.orderId)}
-                              data-ocid={`admin.row.${idx + 1}`}
-                            >
-                              <TableCell className="font-mono text-xs text-muted-foreground">
-                                #{String(order.orderId)}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {order.displayName}
-                              </TableCell>
-                              <TableCell className="text-sm">
-                                {order.vehicleDescription}
-                              </TableCell>
-                              <TableCell className="text-sm max-w-[200px]">
-                                <p className="truncate">
-                                  {order.mailingAddress}
-                                </p>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                {formatDate(order.createdAt)}
-                              </TableCell>
-                              <TableCell>
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}
+                        {[1, 2, 3, 4].map((i) => (
+                          <Skeleton key={i} className="h-14 rounded-lg" />
+                        ))}
+                      </div>
+                    ) : !allUsers || allUsers.length === 0 ? (
+                      <div
+                        className="text-center py-14"
+                        data-ocid="admin.empty_state"
+                      >
+                        <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                        <p className="text-muted-foreground font-medium">
+                          No users registered yet
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table data-ocid="admin.table">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Principal ID</TableHead>
+                              <TableHead>Vehicles</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Expires</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {allUsers.map((user, idx) => {
+                              const principalStr = user.userId.toText();
+                              const isActive = user.subscriptionPaidUntil > now;
+                              const neverPaid =
+                                user.subscriptionPaidUntil === 0n;
+                              return (
+                                <TableRow
+                                  key={principalStr}
+                                  data-ocid={`admin.row.${idx + 1}`}
                                 >
-                                  {getStatusLabel(order.status)}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {!("printed" in order.status) &&
-                                    !("mailed" in order.status) && (
+                                  <TableCell className="font-medium">
+                                    {user.displayName || "—"}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-muted-foreground">
+                                    {principalStr.slice(0, 8)}...
+                                  </TableCell>
+                                  <TableCell>
+                                    {String(user.vehicleCount)}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isActive ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                      </span>
+                                    ) : neverPaid ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                        None
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                        Expired
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {formatSubDate(user.subscriptionPaidUntil)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-7 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                      disabled={extendingUser === principalStr}
+                                      onClick={() =>
+                                        handleExtendSubscription(principalStr)
+                                      }
+                                      data-ocid={`admin.edit_button.${idx + 1}`}
+                                    >
+                                      {extendingUser === principalStr ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : null}
+                                      Extend +1yr
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* STICKER ORDERS TAB */}
+              <TabsContent value="orders">
+                <Card className="shadow-card">
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <CardTitle className="flex items-center gap-2">
+                        <Mail className="w-5 h-5 text-teal-DEFAULT" />
+                        Sticker Orders
+                        {orders && (
+                          <Badge className="bg-teal-DEFAULT text-white ml-1">
+                            {orders.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <Tabs
+                        value={filter}
+                        onValueChange={(v) => setFilter(v as FilterTab)}
+                      >
+                        <TabsList
+                          className="bg-gray-200 p-1"
+                          data-ocid="admin.tab"
+                        >
+                          <TabsTrigger
+                            value="all"
+                            className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                          >
+                            All
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="pending"
+                            className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                          >
+                            Pending
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="printed"
+                            className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                          >
+                            Printed
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="mailed"
+                            className="text-gray-600 data-[state=active]:!bg-teal-DEFAULT data-[state=active]:!text-white"
+                          >
+                            Mailed
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {ordersLoading ? (
+                      <div
+                        className="space-y-3"
+                        data-ocid="admin.loading_state"
+                      >
+                        {[1, 2, 3, 4].map((i) => (
+                          <Skeleton key={i} className="h-14 rounded-lg" />
+                        ))}
+                      </div>
+                    ) : filteredOrders.length === 0 ? (
+                      <div
+                        className="text-center py-14"
+                        data-ocid="admin.empty_state"
+                      >
+                        <CheckCircle className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                        <p className="text-muted-foreground font-medium">
+                          No orders in this category
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table data-ocid="admin.table">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Order #</TableHead>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Vehicle</TableHead>
+                              <TableHead>Mailing Address</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredOrders.map((order, idx) => (
+                              <TableRow
+                                key={String(order.orderId)}
+                                data-ocid={`admin.row.${idx + 1}`}
+                              >
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                  #{String(order.orderId)}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {order.displayName}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {order.vehicleDescription}
+                                </TableCell>
+                                <TableCell className="text-sm max-w-[200px]">
+                                  <p className="truncate">
+                                    {order.mailingAddress}
+                                  </p>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                  {formatDate(order.createdAt)}
+                                </TableCell>
+                                <TableCell>
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}
+                                  >
+                                    {getStatusLabel(order.status)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {!("printed" in order.status) &&
+                                      !("mailed" in order.status) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-xs h-7 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                          disabled={
+                                            updatingId === order.orderId
+                                          }
+                                          onClick={() =>
+                                            handleUpdateStatus(order.orderId, {
+                                              printed: null,
+                                            })
+                                          }
+                                          data-ocid={`admin.edit_button.${idx + 1}`}
+                                        >
+                                          {updatingId === order.orderId ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                          ) : (
+                                            <Printer className="w-3 h-3 mr-1" />
+                                          )}
+                                          Mark Printed
+                                        </Button>
+                                      )}
+                                    {"printed" in order.status && (
                                       <Button
                                         size="sm"
-                                        variant="outline"
-                                        className="text-xs h-7 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                        className="text-xs h-7 bg-teal-DEFAULT hover:bg-teal-dark text-white"
                                         disabled={updatingId === order.orderId}
                                         onClick={() =>
                                           handleUpdateStatus(order.orderId, {
-                                            printed: null,
+                                            mailed: null,
                                           })
                                         }
-                                        data-ocid={`admin.edit_button.${idx + 1}`}
+                                        data-ocid={`admin.primary_button.${idx + 1}`}
                                       >
                                         {updatingId === order.orderId ? (
                                           <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                          <Printer className="w-3 h-3 mr-1" />
+                                          <Mail className="w-3 h-3 mr-1" />
                                         )}
-                                        Mark Printed
+                                        Mark Mailed
                                       </Button>
                                     )}
-                                  {"printed" in order.status && (
-                                    <Button
-                                      size="sm"
-                                      className="text-xs h-7 bg-teal-DEFAULT hover:bg-teal-dark text-white"
-                                      disabled={updatingId === order.orderId}
-                                      onClick={() =>
-                                        handleUpdateStatus(order.orderId, {
-                                          mailed: null,
-                                        })
-                                      }
-                                      data-ocid={`admin.primary_button.${idx + 1}`}
-                                    >
-                                      {updatingId === order.orderId ? (
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                      ) : (
-                                        <Mail className="w-3 h-3 mr-1" />
-                                      )}
-                                      Mark Mailed
-                                    </Button>
-                                  )}
-                                  {"mailed" in order.status && (
-                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <CheckCircle className="w-3 h-3 text-teal-DEFAULT" />
-                                      Complete
-                                    </span>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                                    {"mailed" in order.status && (
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <CheckCircle className="w-3 h-3 text-teal-DEFAULT" />
+                                        Complete
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-              {/* Admin Token Card */}
-              <Card className="shadow-card border-teal-DEFAULT/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Shield className="w-5 h-5 text-teal-DEFAULT" />
-                    Admin Token
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Share this token with anyone you want to grant admin access.
-                    Reset it after use.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  {tokenLoading ? (
-                    <Skeleton
-                      className="h-10 w-full"
-                      data-ocid="admin.loading_state"
-                    />
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-muted rounded-md px-3 py-2 font-mono text-sm break-all select-all">
-                          {setupToken || "—"}
+              {/* SETTINGS TAB */}
+              <TabsContent value="settings">
+                <Card className="shadow-card border-teal-DEFAULT/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Shield className="w-5 h-5 text-teal-DEFAULT" />
+                      Admin Token
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Share this token with anyone you want to grant admin
+                      access. Reset it after use.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {tokenLoading ? (
+                      <Skeleton
+                        className="h-10 w-full"
+                        data-ocid="admin.loading_state"
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-muted rounded-md px-3 py-2 font-mono text-sm break-all select-all">
+                            {setupToken || "—"}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCopyToken}
+                            disabled={!setupToken}
+                            className="shrink-0 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                            data-ocid="admin.secondary_button"
+                          >
+                            {copiedToken ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={handleCopyToken}
-                          disabled={!setupToken}
-                          className="shrink-0 border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
-                          data-ocid="admin.secondary_button"
+                          onClick={handleResetToken}
+                          disabled={resetToken.isPending}
+                          className="text-xs border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                          data-ocid="admin.edit_button"
                         >
-                          {copiedToken ? (
-                            <Check className="w-4 h-4 text-green-600" />
+                          {resetToken.isPending ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           ) : (
-                            <Copy className="w-4 h-4" />
+                            <RefreshCw className="w-3 h-3 mr-1" />
                           )}
+                          Reset Token
                         </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetToken}
-                        disabled={resetToken.isPending}
-                        className="text-xs border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
-                        data-ocid="admin.edit_button"
-                      >
-                        {resetToken.isPending ? (
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                        )}
-                        Reset Token
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           )}
         </motion.div>
       </main>

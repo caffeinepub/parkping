@@ -90,6 +90,7 @@ export default function ChatPage() {
     }
     const doFetch = async () => {
       if (!sessionId) return;
+      if (isOwner && !actor) return; // wait for actor to load
       try {
         let actorToUse: any;
         if (isOwner && actor) {
@@ -102,6 +103,7 @@ export default function ChatPage() {
           senderToken ? [senderToken] : [],
         );
         setMessages(msgs as Message[]);
+        setError("");
         setTimeout(() => {
           if (scrollRef.current)
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

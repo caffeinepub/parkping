@@ -172,3 +172,47 @@ export function useIsAdmin() {
     enabled: !!actor && !isFetching,
   });
 }
+
+export function useClaimAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).claimAdmin(token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
+    },
+  });
+}
+
+export function useAdminSetupToken() {
+  const { actor, isFetching } = useActor();
+  return useQuery<string>({
+    queryKey: ["adminSetupToken"],
+    queryFn: async () => {
+      if (!actor) return "";
+      try {
+        return (actor as any).getAdminSetupToken();
+      } catch {
+        return "";
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useResetAdminToken() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not authenticated");
+      return (actor as any).resetAdminSetupToken();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminSetupToken"] });
+    },
+  });
+}

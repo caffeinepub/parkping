@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Printer, Shield } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useCallerProfile } from "../hooks/useQueries";
 
@@ -66,9 +66,11 @@ export default function PrintStickerPage() {
         >
           {/* Header branding */}
           <div className="flex items-center justify-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-lg bg-teal-DEFAULT flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/assets/uploads/image-2-1.png"
+              alt="ParkPing"
+              className="w-10 h-10 object-contain"
+            />
             <span className="font-bold text-xl text-teal-DEFAULT tracking-tight">
               ParkPing
             </span>
@@ -98,7 +100,7 @@ export default function PrintStickerPage() {
 
           {/* CTA text */}
           <p className="text-sm text-muted-foreground leading-snug mb-4">
-            Scan to contact the owner of this vehicle
+            Scan QR code to contact owner
           </p>
 
           {/* Divider */}

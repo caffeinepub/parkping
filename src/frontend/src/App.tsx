@@ -8,6 +8,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import AdminPage from "./pages/AdminPage";
+import ClaimAdminPage from "./pages/ClaimAdminPage";
 import DashboardPage from "./pages/DashboardPage";
 import LandingPage from "./pages/LandingPage";
 import PrintStickerPage from "./pages/PrintStickerPage";
@@ -61,6 +62,12 @@ const adminRoute = createRoute({
   component: AdminPage,
 });
 
+const claimAdminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/claim-admin",
+  component: ClaimAdminPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -68,6 +75,7 @@ const routeTree = rootRoute.addChildren([
   scanRoute,
   printStickerRoute,
   adminRoute,
+  claimAdminRoute,
 ]);
 
 const router = createRouter({ routeTree });

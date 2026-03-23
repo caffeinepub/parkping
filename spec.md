@@ -1,32 +1,34 @@
 # ParkPing
 
 ## Current State
-New project. No existing application logic.
+- Backend has `MixinAuthorization` and `AccessControl` modules for role-based admin access
+- Frontend has `/claim-admin` page that calls `actor.claimAdmin(token)` -- but this function does NOT exist in the backend
+- Admin token is stored as a CAFFEINE_ADMIN_TOKEN env var but is never exposed or usable from the UI
+- User cannot access the admin panel because they don't know the token and the claim function is missing
 
 ## Requested Changes (Diff)
 
 ### Add
-- User registration and login via authorization component
-- Each registered user gets a unique QR code that encodes their user ID / a link to a messaging page
-- A public "send message" page reachable via QR code scan (no login required) where anyone can type and submit a short message to the identified user
-- An authenticated inbox page where logged-in users can view all messages sent to them
-- Backend: store messages (sender note, timestamp, recipient user ID)
-- Users can generate/view their personal QR code on a profile/dashboard page
+- `forceSetAdmin(state, user)` function in `access-control.mo` to directly assign admin
+- `adminSetupToken` mutable variable in `main.mo` with a readable default value
+- `adminTokenVersion` counter in `main.mo` for token rotation
+- `claimAdmin(token: Text)` shared function in `main.mo` -- verifies token, assigns admin, rotates token
+- `getAdminSetupToken()` query in `main.mo` -- public when no admin assigned, admin-only otherwise
+- `resetAdminSetupToken()` shared function in `main.mo` -- admin-only, rotates token and returns new one
+- Token display section on `/claim-admin` page: auto-fetches the token, shows it with a Copy button
+- Token reset section on `/admin` page for the admin to rotate the token
 
 ### Modify
-- None
+- `access-control.mo`: add `forceSetAdmin` export
+- `ClaimAdminPage.tsx`: fetch and display current setup token with copy button above the form
+- `AdminPage.tsx`: add Admin Token card showing token and reset button
 
 ### Remove
-- None
+- Nothing removed
 
 ## Implementation Plan
-1. Backend: define Message type (id, recipientId, text, timestamp), store messages in a stable map, expose:
-   - `sendMessage(recipientId: Text, text: Text)` - public, no auth required
-   - `getMyMessages()` - returns messages for caller
-   - `getMyProfile()` - returns caller's principal as text (for QR code generation)
-   - `getUserExists(userId: Text)` - check if a user ID is valid before sending
-2. Frontend:
-   - Home/landing page with two CTAs: "Scan QR" and "Get my QR code" (login)
-   - Dashboard (authenticated): shows the user's QR code (encodes a deep-link URL to /send?to=<userId>) and their message inbox
-   - Send Message page (/send?to=<userId>): public page, shows a form to send a message to the identified user
-   - QR Scanner page: uses qr-code component to scan a QR and redirect to the send page
+1. Add `forceSetAdmin` to `access-control.mo`
+2. Add `adminSetupToken`, `claimAdmin`, `getAdminSetupToken`, `resetAdminSetupToken` to `main.mo`
+3. Update `ClaimAdminPage.tsx` to fetch and display the token
+4. Update `AdminPage.tsx` to show/reset the admin token
+5. Add query hooks `useAdminSetupToken` and `useResetAdminToken` to `useQueries.ts`

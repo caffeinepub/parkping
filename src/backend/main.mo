@@ -55,6 +55,43 @@ actor {
   var nextOrderId = 0;
   let stickerOrders = Map.empty<Nat, StickerOrder>();
 
+  // Admin setup token for /claim-admin flow
+  var adminSetupToken : Text = "parkping-admin-setup";
+  var adminTokenVersion : Nat = 1;
+
+  // Returns the setup token. Public when no admin assigned yet; admin-only afterward.
+  public query ({ caller }) func getAdminSetupToken() : async Text {
+    if (not accessControlState.adminAssigned or AccessControl.isAdmin(accessControlState, caller)) {
+      adminSetupToken
+    } else {
+      Runtime.trap("Unauthorized: Admin only")
+    }
+  };
+
+  // Claim admin using the setup token. Rotates the token after use.
+  public shared ({ caller }) func claimAdmin(token : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Must be logged in to claim admin");
+    };
+    if (token != adminSetupToken) {
+      Runtime.trap("Invalid admin setup token");
+    };
+    AccessControl.forceSetAdmin(accessControlState, caller);
+    // Rotate token after successful claim
+    adminTokenVersion += 1;
+    adminSetupToken := "parkping-admin-" # adminTokenVersion.toText();
+  };
+
+  // Admin-only: reset the setup token (returns new token).
+  public shared ({ caller }) func resetAdminSetupToken() : async Text {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    adminTokenVersion += 1;
+    adminSetupToken := "parkping-admin-" # adminTokenVersion.toText();
+    adminSetupToken
+  };
+
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
@@ -69,11 +106,11 @@ actor {
     userProfiles.get(caller);
   };
 
-  public query ({ caller }) func getUserProfile(user : UserId) : async ?UserProfile {
+  public query func getUserProfile(user : UserId) : async ?UserProfile {
     userProfiles.get(user);
   };
 
-  public shared ({ caller }) func sendMessage(recipientId : UserId, text : Text, senderNote : ?Text) : async Nat {
+  public shared func sendMessage(recipientId : UserId, text : Text, senderNote : ?Text) : async Nat {
     if (not userProfiles.containsKey(recipientId)) {
       Runtime.trap("Recipient user does not exist. Please double-check the QR code.");
     };

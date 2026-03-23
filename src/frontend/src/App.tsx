@@ -8,6 +8,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import AdminPage from "./pages/AdminPage";
+import ChatPage from "./pages/ChatPage";
 import ClaimAdminPage from "./pages/ClaimAdminPage";
 import DashboardPage from "./pages/DashboardPage";
 import LandingPage from "./pages/LandingPage";
@@ -68,6 +69,12 @@ const claimAdminRoute = createRoute({
   component: ClaimAdminPage,
 });
 
+const chatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/chat",
+  component: ChatPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -76,6 +83,7 @@ const routeTree = rootRoute.addChildren([
   printStickerRoute,
   adminRoute,
   claimAdminRoute,
+  chatRoute,
 ]);
 
 const router = createRouter({ routeTree });

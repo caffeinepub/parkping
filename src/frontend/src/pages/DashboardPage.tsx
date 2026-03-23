@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
@@ -16,13 +15,11 @@ import {
   Copy,
   Download,
   Edit2,
-  ImageIcon,
   Inbox,
   Loader2,
   LogOut,
-  MessageCircle,
+  MessageSquare,
   Package,
-  Paperclip,
   Plus,
   Printer,
   Shield,
@@ -31,29 +28,26 @@ import {
   User,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { ChatMessage, ChatSession } from "../backend.d";
+import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useMessagePoller } from "../hooks/useMessagePoller";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   type StickerOrderStatus,
   type Vehicle,
   useAddVehicle,
   useCallerProfile,
-  useEndChatSession,
-  useMarkSessionRead,
+  useInbox,
   useMyOrders,
   useMyVehicles,
-  useOwnerChatSessions,
   useRemoveVehicle,
   useSaveProfile,
-  useSendChatMessage,
   useSubmitStickerOrder,
 } from "../hooks/useQueries";
 import { formatRelativeTime } from "../utils/formatters";
-import { uploadMedia } from "../utils/uploadMedia";
 
 function getStatusLabel(status: StickerOrderStatus): string {
   if ("pending" in status) return "Pending";
@@ -71,286 +65,10 @@ function getStatusVariant(
   return "secondary";
 }
 
-function formatTime(timestamp: bigint) {
-  const ms = Number(timestamp / 1_000_000n);
-  return new Date(ms).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function isImageUrl(url: string) {
-  return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
-}
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|ogg|mov)$/i.test(url);
-}
-
-function ChatView({
-  session,
-  onEnd,
-  onClose,
-}: {
-  session: ChatSession;
-  onEnd: () => void;
-  onClose: () => void;
-}) {
-  const sendMessage = useSendChatMessage();
-  const [text, setText] = useState("");
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [session.messages.length]);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setMediaFile(file);
-    setMediaPreview(URL.createObjectURL(file));
-  };
-
-  const clearMedia = () => {
-    setMediaFile(null);
-    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
-    setMediaPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleSend = async () => {
-    if (!text.trim() && !mediaFile) {
-      setError("Please enter a message or attach a file");
-      return;
-    }
-    setError("");
-    try {
-      let mediaUrl: string | undefined;
-      if (mediaFile) {
-        setUploading(true);
-        try {
-          mediaUrl = await uploadMedia(mediaFile);
-        } finally {
-          setUploading(false);
-        }
-      }
-      await sendMessage.mutateAsync({
-        sessionId: session.id,
-        text: text.trim() || "[Media]",
-        mediaUrl,
-        fromOwner: true,
-      });
-      setText("");
-      clearMedia();
-    } catch (e: any) {
-      setError(e?.message || "Failed to send");
-    }
-  };
-
-  const isPending = sendMessage.isPending || uploading;
-
-  return (
-    <div className="flex flex-col h-[420px] bg-background rounded-xl border border-border">
-      {/* Chat header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="w-4 h-4 text-teal-DEFAULT" />
-          <span className="text-sm font-medium text-foreground">
-            Chat Session
-          </span>
-          {session.ended && (
-            <Badge variant="secondary" className="text-xs">
-              Ended
-            </Badge>
-          )}
-          {session.unreadByOwner && !session.ended && (
-            <Badge className="bg-teal-DEFAULT text-white text-xs">New</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {!session.ended && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onEnd}
-              className="h-7 px-2 text-xs border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
-              data-ocid="inbox.delete_button"
-            >
-              End Chat
-            </Button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-            data-ocid="inbox.close_button"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-3">
-        <div className="space-y-2">
-          {[...session.messages]
-            .sort((a: ChatMessage, b: ChatMessage) =>
-              Number(a.timestamp - b.timestamp),
-            )
-            .map((msg: ChatMessage, idx: number) => (
-              <div
-                key={String(msg.id)}
-                className={`flex ${msg.fromOwner ? "justify-end" : "justify-start"}`}
-                data-ocid={`inbox.item.${idx + 1}`}
-              >
-                <div
-                  className={`max-w-[75%] rounded-2xl px-3 py-2 ${
-                    msg.fromOwner
-                      ? "bg-teal-DEFAULT text-white rounded-tr-sm"
-                      : "bg-muted text-foreground rounded-tl-sm"
-                  }`}
-                >
-                  {msg.text && msg.text !== "[Media]" && (
-                    <p className="text-sm">{msg.text}</p>
-                  )}
-                  {msg.mediaUrl && isImageUrl(msg.mediaUrl) && (
-                    <img
-                      src={msg.mediaUrl}
-                      alt="Shared media"
-                      className="rounded-lg mt-1 max-w-full max-h-40 object-cover"
-                    />
-                  )}
-                  {msg.mediaUrl && isVideoUrl(msg.mediaUrl) && (
-                    // biome-ignore lint/a11y/useMediaCaption: chat video
-                    <video
-                      src={msg.mediaUrl}
-                      controls
-                      className="rounded-lg mt-1 max-w-full max-h-40"
-                    />
-                  )}
-                  <p
-                    className={`text-xs mt-0.5 ${
-                      msg.fromOwner ? "text-white/70" : "text-muted-foreground"
-                    }`}
-                  >
-                    {formatTime(msg.timestamp)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-
-      {/* Input */}
-      {!session.ended && (
-        <div className="px-4 py-3 border-t border-border space-y-2">
-          {mediaPreview && (
-            <div className="relative inline-block">
-              {mediaFile?.type.startsWith("image/") ? (
-                <img
-                  src={mediaPreview}
-                  alt="Preview"
-                  className="h-12 w-12 rounded-lg object-cover border border-border"
-                />
-              ) : (
-                <div className="h-12 w-12 rounded-lg border border-border bg-muted flex items-center justify-center">
-                  <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={clearMedia}
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-white flex items-center justify-center"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </div>
-          )}
-          {error && (
-            <p
-              className="text-destructive text-xs"
-              data-ocid="inbox.error_state"
-            >
-              {error}
-            </p>
-          )}
-          <div className="flex gap-2 items-center">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-shrink-0 w-8 h-8 rounded-full border border-border bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
-              data-ocid="inbox.upload_button"
-            >
-              <Paperclip className="w-3.5 h-3.5" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <Input
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setError("");
-              }}
-              placeholder="Type a reply..."
-              className="flex-1 h-8 text-sm"
-              onKeyDown={(e) =>
-                e.key === "Enter" && !e.shiftKey && handleSend()
-              }
-              disabled={isPending}
-              data-ocid="inbox.input"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={isPending}
-              className="flex-shrink-0 w-8 h-8 p-0 bg-teal-DEFAULT hover:bg-teal-dark text-white rounded-full"
-              data-ocid="inbox.submit_button"
-            >
-              {isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Send(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m22 2-7 20-4-9-9-4Z" />
-      <path d="M22 2 11 13" />
-    </svg>
-  );
-}
-
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { identity, clear } = useInternetIdentity();
+  const { actor } = useActor();
   const principal = identity?.getPrincipal().toText() ?? null;
   const qrUrl = principal
     ? `${window.location.origin}/send?to=${principal}`
@@ -359,6 +77,9 @@ export default function DashboardPage() {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`
     : "";
 
+  useInbox();
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const { data: profile, isLoading: profileLoading } = useCallerProfile();
   const saveProfile = useSaveProfile();
   const { data: myOrders, isLoading: ordersLoading } = useMyOrders();
@@ -366,13 +87,32 @@ export default function DashboardPage() {
   const { data: myVehicles, isLoading: vehiclesLoading } = useMyVehicles();
   const addVehicle = useAddVehicle();
   const removeVehicle = useRemoveVehicle();
-  const { data: chatSessions, isLoading: sessionsLoading } =
-    useOwnerChatSessions();
-  const endChatSession = useEndChatSession();
-  const markRead = useMarkSessionRead();
 
   // Notifications
   const { supported, permission, requestPermission } = useNotifications();
+  useMessagePoller({
+    actor,
+    notificationsGranted: permission === "granted",
+    enabled: !!actor && !!identity,
+  });
+
+  // Load chat sessions
+  useEffect(() => {
+    if (!actor || !identity) return;
+    const loadSessions = async () => {
+      try {
+        const sessions = await (actor as any).getOwnerChatSessions();
+        setChatSessions(sessions);
+      } catch {
+        // ignore
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+    loadSessions();
+    const interval = setInterval(loadSessions, 5000);
+    return () => clearInterval(interval);
+  }, [actor, identity]);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
@@ -383,14 +123,13 @@ export default function DashboardPage() {
   const [newVehicleName, setNewVehicleName] = useState("");
   const [newVehicleDesc, setNewVehicleDesc] = useState("");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   if (!identity) {
     navigate({ to: "/" });
     return null;
   }
 
-  const displayName = profile?.displayName || "Vehicle Owner";
+  const displayName = profile?.displayName || "Car Owner";
 
   const handleEditName = () => {
     setNameInput(profile?.displayName || "");
@@ -449,33 +188,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleOpenSession = async (session: ChatSession) => {
-    setActiveSessionId(session.id);
-    if (session.unreadByOwner) {
-      try {
-        await markRead.mutateAsync(session.id);
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  const handleEndSession = async (sessionId: string) => {
-    try {
-      await endChatSession.mutateAsync(sessionId);
-      toast.success("Chat ended");
-    } catch {
-      toast.error("Failed to end chat");
-    }
-  };
-
-  const unreadCount =
-    chatSessions?.filter((s: ChatSession) => s.unreadByOwner && !s.ended)
-      .length ?? 0;
-
-  const activeSession =
-    chatSessions?.find((s: ChatSession) => s.id === activeSessionId) ?? null;
-
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-white border-b border-border sticky top-0 z-50">
@@ -487,7 +199,7 @@ export default function DashboardPage() {
             data-ocid="nav.link"
           >
             <img
-              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
+              src="/assets/uploads/image-019d1cbb-24e0-7038-9daf-a5abc2143997-1.png"
               alt="ParkPing"
               className="h-9 w-auto"
             />
@@ -522,7 +234,7 @@ export default function DashboardPage() {
         >
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">
-              Your Windshield Glass
+              Your Dashboard
             </h1>
             <p className="text-muted-foreground mt-1">
               Manage your parking QR code and read your messages.
@@ -609,8 +321,7 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="text-center text-xs text-muted-foreground">
-                  Print this QR code and place it on your vehicle windshield
-                  glass
+                  Print this QR code and place it on your car dashboard
                 </p>
 
                 <div className="flex gap-3">
@@ -664,15 +375,16 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Chat Sessions Card */}
+            {/* Inbox Card */}
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Inbox className="w-5 h-5 text-teal-DEFAULT" />
-                    Messages
+                    Chat Sessions
                   </span>
                   <div className="flex items-center gap-2">
+                    {/* Notification permission badge/button */}
                     {supported && permission === "default" && (
                       <Button
                         variant="outline"
@@ -700,116 +412,88 @@ export default function DashboardPage() {
                         data-ocid="inbox.notifications_blocked_badge"
                       >
                         <BellOff className="w-3.5 h-3.5" />
-                        Blocked
+                        Notifications blocked
                       </span>
                     )}
-                    {unreadCount > 0 && (
+                    {chatSessions.filter((s) => s.isActive).length > 0 && (
                       <Badge
                         className="bg-teal-DEFAULT text-white"
                         data-ocid="inbox.badge"
                       >
-                        {unreadCount}
+                        {chatSessions.filter((s) => s.isActive).length}
                       </Badge>
                     )}
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Active chat view */}
-                <AnimatePresence>
-                  {activeSession && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="mb-4"
-                      data-ocid="inbox.panel"
-                    >
-                      <ChatView
-                        session={activeSession}
-                        onEnd={() => handleEndSession(activeSession.id)}
-                        onClose={() => setActiveSessionId(null)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
                 {sessionsLoading ? (
                   <div className="space-y-4" data-ocid="inbox.loading_state">
                     {[1, 2, 3].map((i) => (
                       <Skeleton key={i} className="h-16 rounded-xl" />
                     ))}
                   </div>
-                ) : !chatSessions || chatSessions.length === 0 ? (
+                ) : chatSessions.length === 0 ? (
                   <div
                     className="text-center py-12"
                     data-ocid="inbox.empty_state"
                   >
                     <Bell className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
                     <p className="text-muted-foreground font-medium">
-                      No messages yet
+                      No chat sessions yet
                     </p>
                     <p className="text-muted-foreground text-sm mt-1">
                       Share your QR code to start receiving messages
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
                     {[...chatSessions]
-                      .sort((a: ChatSession, b: ChatSession) =>
-                        Number(b.createdAt - a.createdAt),
-                      )
-                      .map((session: ChatSession, idx: number) => {
-                        const firstMsg = session.messages[0];
-                        const isActive = session.id === activeSessionId;
-                        return (
-                          <motion.button
-                            type="button"
-                            key={session.id}
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className={`w-full text-left bg-muted rounded-xl p-4 hover:bg-muted/80 transition-colors ${
-                              isActive ? "ring-2 ring-teal-DEFAULT" : ""
-                            }`}
-                            onClick={() => handleOpenSession(session)}
-                            data-ocid={`inbox.item.${idx + 1}`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <MessageCircle className="w-3.5 h-3.5 text-teal-DEFAULT flex-shrink-0" />
-                                  {session.unreadByOwner && !session.ended && (
-                                    <span className="w-2 h-2 rounded-full bg-teal-DEFAULT flex-shrink-0" />
-                                  )}
-                                  {session.ended && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs px-1.5 py-0"
-                                    >
-                                      Ended
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-foreground text-sm leading-relaxed truncate">
-                                  {firstMsg?.text && firstMsg.text !== "[Media]"
-                                    ? firstMsg.text
-                                    : firstMsg?.mediaUrl
-                                      ? "📷 Media"
-                                      : "(no messages)"}
+                      .sort((a, b) => Number(b.lastMessageAt - a.lastMessageAt))
+                      .map((session, idx) => (
+                        <motion.div
+                          key={String(session.id)}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="bg-muted rounded-xl p-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() =>
+                            navigate({ to: `/chat?session=${session.id}` })
+                          }
+                          data-ocid={`inbox.item.${idx + 1}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-teal-DEFAULT/10 flex items-center justify-center flex-shrink-0">
+                                <MessageSquare className="w-4 h-4 text-teal-DEFAULT" />
+                              </div>
+                              <div>
+                                <p className="text-foreground text-sm font-medium">
+                                  Chat #{String(session.id)}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {session.messages.length} message
-                                  {session.messages.length !== 1 ? "s" : ""}
+                                <p className="text-muted-foreground text-xs">
+                                  Started{" "}
+                                  {new Date(
+                                    Number(session.startedAt / 1_000_000n),
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                {formatRelativeTime(session.createdAt)}
-                              </span>
                             </div>
-                          </motion.button>
-                        );
-                      })}
+                            <div className="flex items-center gap-2">
+                              {session.isActive ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted border border-border rounded-full px-2.5 py-0.5">
+                                  Ended
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
                   </div>
                 )}
               </CardContent>

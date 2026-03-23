@@ -27,7 +27,7 @@ const steps = [
     number: "02",
     title: "Stick",
     description:
-      "Print or save your personalized QR code and place it visibly on your vehicle windshield glass.",
+      "Print or save your personalized QR code and place it visibly on your car dashboard or windshield.",
     icon: <QrCode className="w-8 h-8 text-teal-DEFAULT" />,
   },
   {
@@ -41,22 +41,22 @@ const steps = [
 
 const features = [
   {
-    img: "/assets/generated/feature-qr-car.dim_400x300.png",
+    img: "/assets/generated/feature-vehicle-id.dim_400x300.png",
     title: "Your Vehicle's Digital ID",
     description:
-      "A unique QR code links directly to your inbox. Stick it on your vehicle and stay reachable.",
+      "A unique QR code links directly to your inbox. Stick it on your car and stay reachable.",
   },
   {
-    img: "/assets/generated/feature-scan-person.dim_400x300.png",
+    img: "/assets/generated/feature-instant-scan.dim_400x300.png",
     title: "Instant Scanning",
     description:
       "No app download required. Anyone with a phone camera can scan and send you a message.",
   },
   {
-    img: "/assets/generated/feature-notification.dim_400x300.png",
+    img: "/assets/generated/feature-realtime-alerts.dim_400x300.png",
     title: "Real-Time Alerts",
     description:
-      "Receive anonymous messages about your vehicle straight to your secure inbox.",
+      "Receive anonymous messages about your car straight to your secure inbox.",
   },
 ];
 
@@ -109,7 +109,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center">
             <img
-              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
+              src="/assets/uploads/image-019d1cbb-24e0-7038-9daf-a5abc2143997-1.png"
               alt="ParkPing"
               className="h-9 w-auto"
             />
@@ -149,7 +149,7 @@ export default function LandingPage() {
             className="bg-teal-DEFAULT hover:bg-teal-dark text-white"
             data-ocid="nav.primary_button"
           >
-            {isLoggedIn ? "Go to Windshield Glass" : "Get Started"}
+            {isLoggedIn ? "Go to Dashboard" : "Get Started"}
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
@@ -166,7 +166,7 @@ export default function LandingPage() {
               className="flex justify-center order-2 lg:order-1"
             >
               <img
-                src="/assets/generated/parkping-phone-dark-merged.dim_500x900.png"
+                src="/assets/generated/hero-phone-v2-transparent.dim_600x900.png"
                 alt="ParkPing app"
                 className="w-64 sm:w-80"
                 style={{
@@ -182,13 +182,13 @@ export default function LandingPage() {
               className="order-1 lg:order-2"
             >
               <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-4">
-                Your vehicle,{" "}
+                Your car,{" "}
                 <span className="text-teal-DEFAULT">always reachable.</span>
               </h1>
               <p className="text-lg text-white/80 mb-8 leading-relaxed">
-                ParkPing lets anyone leave you a message about your parked
-                vehicle — no phone numbers, no apps, just a simple QR code on
-                your windshield glass.
+                ParkPing lets anyone leave you a message about your parked car —
+                no phone numbers, no apps, just a simple QR code on your
+                dashboard.
               </p>
 
               <div className="hero-card rounded-2xl p-6">
@@ -213,7 +213,7 @@ export default function LandingPage() {
                     {isLoggingIn
                       ? "Connecting..."
                       : isLoggedIn
-                        ? "Go to Windshield Glass"
+                        ? "Go to Dashboard"
                         : "Generate My QR Code"}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -226,7 +226,7 @@ export default function LandingPage() {
                     className="text-teal-DEFAULT hover:underline"
                     data-ocid="hero.link"
                   >
-                    {isLoggedIn ? "Go to Windshield Glass" : "Login"}
+                    {isLoggedIn ? "Go to Dashboard" : "Login"}
                   </button>
                 </p>
               </div>
@@ -259,7 +259,7 @@ export default function LandingPage() {
               How It Works
             </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Three simple steps to stay connected to your vehicle.
+              Three simple steps to stay connected to your car.
             </p>
           </motion.div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -393,7 +393,7 @@ export default function LandingPage() {
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <img
-                src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
+                src="/assets/uploads/image-019d1cbb-24e0-7038-9daf-a5abc2143997-1.png"
                 alt="ParkPing"
                 className="h-7 w-auto"
               />

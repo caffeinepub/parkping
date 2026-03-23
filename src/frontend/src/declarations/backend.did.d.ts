@@ -10,23 +10,6 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface ChatMessage {
-  'id' : bigint,
-  'text' : string,
-  'mediaUrl' : [] | [string],
-  'timestamp' : Time,
-  'fromOwner' : boolean,
-}
-export interface ChatSession {
-  'id' : string,
-  'messages' : Array<ChatMessage>,
-  'ownerId' : UserId,
-  'createdAt' : Time,
-  'ended' : boolean,
-  'unreadByOwner' : boolean,
-  'senderId' : [] | [UserId],
-}
-export type ExternalBlob = Uint8Array;
 export interface Message {
   'id' : bigint,
   'text' : string,
@@ -34,149 +17,57 @@ export interface Message {
   'senderNote' : [] | [string],
   'recipientId' : UserId,
 }
-export interface ShoppingItem {
-  'productName' : string,
-  'currency' : string,
-  'quantity' : bigint,
-  'priceInCents' : bigint,
-  'productDescription' : string,
-}
-export interface StickerOrder {
-  'status' : StickerOrderStatus,
-  'vehicleDescription' : string,
-  'displayName' : string,
-  'userId' : UserId,
-  'createdAt' : Time,
-  'orderId' : bigint,
-  'mailingAddress' : string,
-}
-export type StickerOrderStatus = { 'pending' : null } |
-  { 'printed' : null } |
-  { 'mailed' : null };
-export interface StripeConfiguration {
-  'allowedCountries' : Array<string>,
-  'secretKey' : string,
-}
-export type StripeSessionStatus = {
-    'completed' : { 'userPrincipal' : [] | [string], 'response' : string }
-  } |
-  { 'failed' : { 'error' : string } };
-export interface SubscriptionStatus {
-  'paidUntil' : bigint,
-  'isActive' : boolean,
-  'vehicleCount' : bigint,
-}
 export type Time = bigint;
-export interface TransformationInput {
-  'context' : Uint8Array,
-  'response' : http_request_result,
-}
-export interface TransformationOutput {
-  'status' : bigint,
-  'body' : Uint8Array,
-  'headers' : Array<http_header>,
-}
 export type UserId = Principal;
-export interface UserProfile {
-  'contactInfo' : string,
-  'displayName' : string,
-  'profilePicture' : [] | [ExternalBlob],
-}
+export interface UserProfile { 'contactInfo' : string, 'displayName' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export type StickerOrderStatus = { 'pending' : null } | { 'printed' : null } | { 'mailed' : null };
+export interface StickerOrder {
+  'orderId' : bigint,
+  'userId' : UserId,
+  'displayName' : string,
+  'mailingAddress' : string,
+  'vehicleDescription' : string,
+  'status' : StickerOrderStatus,
+  'createdAt' : Time,
+}
 export interface Vehicle {
   'id' : bigint,
   'name' : string,
-  'createdAt' : Time,
   'description' : string,
+  'createdAt' : Time,
 }
-export interface _CaffeineStorageCreateCertificateResult {
-  'method' : string,
-  'blob_hash' : string,
-}
-export interface _CaffeineStorageRefillInformation {
-  'proposed_top_up_amount' : [] | [bigint],
-}
-export interface _CaffeineStorageRefillResult {
-  'success' : [] | [boolean],
-  'topped_up_amount' : [] | [bigint],
-}
-export interface http_header { 'value' : string, 'name' : string }
-export interface http_request_result {
-  'status' : bigint,
-  'body' : Uint8Array,
-  'headers' : Array<http_header>,
+export interface SubscriptionStatus {
+  'paidUntil' : bigint,
+  'vehicleCount' : bigint,
+  'isActive' : boolean,
 }
 export interface _SERVICE {
-  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
-  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
-  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
-    [Array<Uint8Array>],
-    undefined
-  >,
-  '_caffeineStorageCreateCertificate' : ActorMethod<
-    [string],
-    _CaffeineStorageCreateCertificateResult
-  >,
-  '_caffeineStorageRefillCashier' : ActorMethod<
-    [[] | [_CaffeineStorageRefillInformation]],
-    _CaffeineStorageRefillResult
-  >,
-  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addVehicle' : ActorMethod<[string, string], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'claimAdmin' : ActorMethod<[string], undefined>,
-  'createChatSession' : ActorMethod<[UserId, string, [] | [string]], string>,
-  'createCheckoutSession' : ActorMethod<
-    [Array<ShoppingItem>, string, string],
-    string
-  >,
-  'endChatSession' : ActorMethod<[string], undefined>,
-  'getAdminSetupToken' : ActorMethod<[], string>,
-  'getAllUsers' : ActorMethod<
-    [],
-    Array<
-      {
-        'displayName' : string,
-        'userId' : UserId,
-        'vehicleCount' : bigint,
-        'subscriptionPaidUntil' : bigint,
-      }
-    >
-  >,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getChatSession' : ActorMethod<[string], ChatSession>,
   'getInbox' : ActorMethod<[], Array<Message>>,
   'getMessagesByUser' : ActorMethod<[UserId], Array<Message>>,
-  'getMyOrders' : ActorMethod<[], Array<StickerOrder>>,
-  'getMySubscriptionStatus' : ActorMethod<[], SubscriptionStatus>,
-  'getMyVehicles' : ActorMethod<[], Array<Vehicle>>,
-  'getOwnerChatSessions' : ActorMethod<[], Array<ChatSession>>,
-  'getStickerOrders' : ActorMethod<[], Array<StickerOrder>>,
-  'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getUserProfile' : ActorMethod<[UserId], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'isStripeConfigured' : ActorMethod<[], boolean>,
-  'markSessionRead' : ActorMethod<[string], undefined>,
-  'markSubscriptionPaid' : ActorMethod<[UserId, bigint], undefined>,
-  'removeVehicle' : ActorMethod<[bigint], undefined>,
-  'resetAdminSetupToken' : ActorMethod<[], string>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'sendChatMessage' : ActorMethod<
-    [string, string, [] | [string], boolean],
-    bigint
-  >,
   'sendMessage' : ActorMethod<[UserId, string, [] | [string]], bigint>,
-  'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
   'submitStickerOrder' : ActorMethod<[string, string], bigint>,
-  'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
-  'updateStickerOrderStatus' : ActorMethod<
-    [bigint, StickerOrderStatus],
-    undefined
-  >,
+  'getStickerOrders' : ActorMethod<[], Array<StickerOrder>>,
+  'updateStickerOrderStatus' : ActorMethod<[bigint, StickerOrderStatus], undefined>,
+  'getMyOrders' : ActorMethod<[], Array<StickerOrder>>,
+  'addVehicle' : ActorMethod<[string, string], bigint>,
+  'getMyVehicles' : ActorMethod<[], Array<Vehicle>>,
+  'removeVehicle' : ActorMethod<[bigint], undefined>,
+  'getMySubscriptionStatus' : ActorMethod<[], SubscriptionStatus>,
+  'markSubscriptionPaid' : ActorMethod<[UserId, bigint], undefined>,
+  'getAllUsers' : ActorMethod<[], Array<{ 'userId' : UserId, 'displayName' : string, 'subscriptionPaidUntil' : bigint, 'vehicleCount' : bigint }>>,
+  'getAdminSetupToken' : ActorMethod<[], string>,
+  'claimAdmin' : ActorMethod<[string], undefined>,
+  'resetAdminSetupToken' : ActorMethod<[], string>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

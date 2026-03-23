@@ -34,7 +34,7 @@ export default function ClaimAdminPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center">
             <a href="/" className="flex items-center gap-2">
               <img
-                src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
+                src="/assets/uploads/image-019d1cbb-24e0-7038-9daf-a5abc2143997-1.png"
                 alt="ParkPing"
                 className="w-8 h-8 object-contain"
               />
@@ -90,7 +90,7 @@ export default function ClaimAdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center">
           <a href="/" className="flex items-center gap-2">
             <img
-              src="/assets/uploads/image-019d1bf4-5028-7557-a9f9-befc1d4e24fa-1.png"
+              src="/assets/uploads/image-019d1cbb-24e0-7038-9daf-a5abc2143997-1.png"
               alt="ParkPing"
               className="w-8 h-8 object-contain"
             />

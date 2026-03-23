@@ -206,7 +206,7 @@ export default function AdminPage() {
               data-ocid="admin.link"
             >
               <ArrowLeft className="w-4 h-4" />
-              Windshield Glass
+              Dashboard
             </button>
             <div className="h-5 w-px bg-border" />
             <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function AdminPage() {
                 onClick={() => navigate({ to: "/dashboard" })}
                 data-ocid="admin.primary_button"
               >
-                Go to Windshield Glass
+                Go to Dashboard
               </Button>
               <Button
                 variant="outline"
